@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ar">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تصنيف الصور الفوتوغرافية</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            direction: rtl;
+        }
+
+        header {
+            background-color: #007bff;
+            color: white;
+            text-align: center;
+            padding: 1em 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header h1 {
+            display: inline-block;
+            margin: 0;
+            animation: slide 10s linear infinite;
+        }
+
+        @keyframes slide {
+            0% {
+                transform: translateX(100%);
+            }
+
+            100% {
+                transform: translateX(-100%);
+            }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .albums,
+        .album-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .albums button,
+        .album-actions button {
+            flex: 1;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .albums button:hover,
+        .album-actions button:hover {
+            background-color: #0056b3;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-group input[type="file"],
+        .form-group input[type="text"],
+        .form-group select {
+            display: block;
+            width: 100%;
+        }
+
+        .photos {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .photo-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .photo-container img {
+            max-width: 100px;
+            border-radius: 4px;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+        }
+
+        .save-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .save-btn:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>تصنيف الصور الفوتوغرافية</h1>
+    </header>
+    <div class="container">
+        <div class="albums" id="albumButtonsContainer"></div>
+        <div class="album-actions">
+            <button onclick="addAlbum()">إضافة ألبوم</button>
+            <button onclick="deleteAlbum()">حذف ألبوم</button>
+            <button onclick="renameAlbum()">تغيير اسم الألبوم</button>
+        </div>
+        <div class="form-group">
+            <label for="photoInput">إضافة صورة:</label>
+            <input type="file" id="photoInput" accept="image/*">
+        </div>
+        <div class="form-group">
+            <label for="albumSelect">اختر ألبوم:</label>
+            <select id="albumSelect"></select>
+        </div>
+        <div class="form-group">
+            <label for="photoComment">تعليق على الصورة:</label>
+            <input type="text" id="photoComment">
+        </div>
+        <button class="save-btn" onclick="saveData()">حفظ البيانات</button>
+        <button class="save-btn" onclick="saveToFile()">حفظ إلى ملف</button>
+        <div class="photos" id="photosContainer"></div>
+    </div>
+
+    <script>
+        // Initialize albums from localStorage or as empty objects
+        const albums = JSON.parse(localStorage.getItem('albums')) || {
+            Family: [],
+            Architecture: [],
+            Street: [],
+            Landscape: [],
+            Travel: [],
+            Miscellaneous: []
+        };
+
+        const photoInput = document.getElementById('photoInput');
+        const albumSelect = document.getElementById('albumSelect');
+        const photosContainer = document.getElementById('photosContainer');
+        const albumButtonsContainer = document.getElementById('albumButtonsContainer');
+        const photoComment = document.getElementById('photoComment');
+
+        function updateAlbumButtons() {
+            albumButtonsContainer.innerHTML = '';
+            albumSelect.innerHTML = '';
+            for (const album in albums) {
+                const button = document.createElement('button');
+                button.textContent = album;
+                button.dataset.album = album;
+                button.onclick = () => displayPhotos(album);
+                albumButtonsContainer.appendChild(button);
+
+                const option = document.createElement('option');
+                option.value = album;
+                option.textContent = album;
+                albumSelect.appendChild(option);
+            }
+        }
+
+        function displayPhotos(album) {
+            photosContainer.innerHTML = '';
+            albums[album].forEach((photo, index) => {
+                const photoContainer = document.createElement('div');
+                photoContainer.className = 'photo-container';
+
+                const img = document.createElement('img');
+                img.src = photo.url;
+                photoContainer.appendChild(img);
+
+                const comment = document.createElement('p');
+                comment.textContent = photo.comment || '';
+                photoContainer.appendChild(comment);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = '×';
+                deleteBtn.onclick = () => deletePhoto(album, index);
+                photoContainer.appendChild(deleteBtn);
+
+                photosContainer.appendChild(photoContainer);
+            });
+        }
+
+        function saveData() {
+            const file = photoInput.files[0];
+            const album = albumSelect.value;
+            const comment = photoComment.value;
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    albums[album].push({ url: e.target.result, comment });
+                    localStorage.setItem('albums', JSON.stringify(albums));
+                    displayPhotos(album);
+                    photoInput.value = '';
+                    photoComment.value = '';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert('يرجى اختيار صورة.');
+            }
+        }
+
+        function deletePhoto(album, index) {
+            albums[album].splice(index, 1);
+            localStorage.setItem('albums', JSON.stringify(albums));
+            displayPhotos(album);
+        }
+
+        function addAlbum() {
+            const albumName = prompt('أدخل اسم الألبوم الجديد:');
+            if (albumName && !albums[albumName]) {
+                albums[albumName] = [];
+                localStorage.setItem('albums', JSON.stringify(albums));
+                updateAlbumButtons();
+            } else {
+                alert('اسم الألبوم غير صالح أو موجود بالفعل.');
+            }
+        }
+
+        function deleteAlbum() {
+            const albumName = prompt('أدخل اسم الألبوم المراد حذفه:');
+            if (albumName && albums[albumName]) {
+                delete albums[albumName];
+                localStorage.setItem('albums', JSON.stringify(albums));
+                updateAlbumButtons();
+            } else {
+                alert('لا يوجد ألبوم بهذا الاسم.');
+            }
+        }
+
+        function renameAlbum() {
+            const oldName = prompt('أدخل اسم الألبوم الحالي:');
+            if (oldName && albums[oldName]) {
+                const newName = prompt('أدخل الاسم الجديد للألبوم:');
+                if (newName && !albums[newName]) {
+                    albums[newName] = albums[oldName];
+                    delete albums[oldName];
+                    localStorage.setItem('albums', JSON.stringify(albums));
+                    updateAlbumButtons();
+                } else {
+                    alert('اسم الألبوم الجديد غير صالح أو موجود بالفعل.');
+                }
+            } else {
+                alert('لا يوجد ألبوم بهذا الاسم.');
+            }
+        }
+
+        function saveToFile() {
+            const dataStr = JSON.stringify(albums, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'albums.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Display default album (Family) on load
+        window.onload = () => {
+            updateAlbumButtons();
+            displayPhotos('Family');
+        };
+    </script>
+    <div class="instructions">
+        <h2>تشغيل خادم محلي باستخدام Python</h2>
+        <ol>
+            <li>افتح سطر الأوامر أو الطرفية (Terminal).</li>
+            <li>انتقل إلى الدليل حيث يوجد ملف HTML الخاص بك.</li>
+            <li>اكتب الأمر التالي لتشغيل خادم بسيط:
+                <pre><code>python -m http.server</code></pre>
+            </li>
+            <li>افتح متصفحك وانتقل إلى <a href="http://localhost:8000" target="_blank">http://localhost:8000</a>.</li>
+        </ol>
+    </div>
+</body>
+
+</html>
